@@ -1,13 +1,44 @@
 {
   "name": "heylock",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.6",
+  "description": "Heylock: AI-powered messaging, rewriting, sorting, and context management client.",
   "type": "module",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "types": "types.d.ts",
+  "keywords": ["ai", "messaging", "rewrite", "sort", "context", "typescript", "client"],
+  "author": "Denis Evlampiev hello@heylock.pro",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DenisEvlampiev23/heylock.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "bugs": {
+    "url": "https://github.com/DenisEvlampiev23/heylock/issues"
+  },
+  "homepage": "https://github.com/DenisEvlampiev23/heylock#readme",
+  "files": [
+    "index.js",
+    "types.d.ts",
+    "dist/"
+  ],
+  "module": "index.js",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js",
+      "types": "./types.d.ts"
+    }
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "test": "node test/basic.test.js",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "rollup": "^2.79.2",
+    "rollup-plugin-terser": "^7.0.2"
+  }
 }
