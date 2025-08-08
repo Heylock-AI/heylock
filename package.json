@@ -1,6 +1,6 @@
 {
   "name": "heylock",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Heylock: AI-powered messaging, rewriting, sorting, and context management client.",
   "type": "module",
   "main": "dist/heylock.min.js",
