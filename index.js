@@ -5,8 +5,24 @@
 
 export default class Heylock {
   /**
-   * Create a new Heylock client instance.
-   * @param {string} key - API key for authentication
+   * Public read-only quota properties for each API type.
+   * Updated after every successful API call. Retain previous value if headers/limits missing.
+   * @type {number|null}
+   */
+  get remainingMessages() { return this._remainingMessages; }
+  get remainingSorts() { return this._remainingSorts; }
+  get remainingRewrites() { return this._remainingRewrites; }
+  get remainingIndexingEvents() { return this._remainingIndexingEvents; }
+
+  // Internal storage for quota values
+  _remainingMessages = null;
+  _remainingSorts = null;
+  _remainingRewrites = null;
+  _remainingIndexingEvents = null;
+
+  /**
+   * Create a new Heylock agent instance.
+   * @param {string} key - Agent key for authentication
    * @param {boolean} [saveHistory=true] - Whether to save message history
    * @param {boolean} [saveContextInCookies=true] - Whether to persist context in cookies (browser only)
    */
@@ -18,7 +34,7 @@ export default class Heylock {
     
     // Basic key validation
     if (!this.key || typeof this.key !== 'string' || this.key.trim().length === 0) {
-      throw new Error("API key is required and must be a non-empty string.");
+      throw new Error("Agent key is required and must be a non-empty string.");
     }
     
     // Validate the key immediately during initialization
@@ -32,6 +48,19 @@ export default class Heylock {
     if (this.saveContextInCookies && typeof document !== 'undefined') {
       this._loadContextFromCookie();
     }
+
+    // Check limits on initialization and update quota properties
+    // This is async, but we do not block constructor; errors are logged and do not throw
+    this.getLimits().then(limitsResult => {
+      if (limitsResult && limitsResult.limits) {
+        this._updateQuotaFromHeaders(new Map(), limitsResult.limits);
+      }
+    }).catch(err => {
+      // Do not throw, just log
+      console.warn('Failed to fetch limits on initialization:', err);
+    });
+
+
   }
 
   /**
@@ -112,8 +141,9 @@ export default class Heylock {
         })
       });
 
-      console.log(messageResponse.status);
       await this._handleCommonErrors(messageResponse);
+
+      this._updateQuotaFromHeaders(messageResponse.headers);
           
       if(messageResponse.status === 200){
         let outputMessage = "";
@@ -220,6 +250,8 @@ export default class Heylock {
         })
       });
       await this._handleCommonErrors(messageResponse);
+      
+      this._updateQuotaFromHeaders(messageResponse.headers);
           
       if(messageResponse.status === 200){
         const reader = messageResponse.body.getReader();
@@ -331,7 +363,6 @@ export default class Heylock {
         })
       });
 
-      console.log(rewriteResponse.status);
       await this._handleCommonErrors(rewriteResponse);
           
       if(rewriteResponse.status === 200){
@@ -339,6 +370,8 @@ export default class Heylock {
 
         try{
           outputText = (await rewriteResponse.json()).text;
+
+          this._updateQuotaFromHeaders(rewriteResponse.headers);
 
           if(typeof(outputText) !== "string"){
             throw new Error("Something went wrong with the response from the server. Check your connection settings or update the package.");
@@ -416,11 +449,12 @@ export default class Heylock {
         })
       });
 
-      console.log(sortResponse.status);
       await this._handleCommonErrors(sortResponse);
           
       if(sortResponse.status === 200){
         try{
+          this._updateQuotaFromHeaders(sortResponse.headers);
+
           const responseData = await sortResponse.json();
 
           // Validate response structure
@@ -494,13 +528,15 @@ export default class Heylock {
           context: this.getContextAsString()
         })
       });
-      console.log(shouldEngageResponse.status);
+
       await this._handleCommonErrors(shouldEngageResponse);
           
       if(shouldEngageResponse.status === 200){
         let responseData = null;
 
         try{
+          this._updateQuotaFromHeaders(shouldEngageResponse.headers);
+
           responseData = await shouldEngageResponse.json();
 
           if(typeof(responseData.shouldEngage) !== "boolean" || typeof(responseData.reasoning) !== "string"){
@@ -561,6 +597,7 @@ export default class Heylock {
       const greeting = await this.message(greetingPrompt, this.messageHistory);
       return greeting;
     } catch(error) {
+      this._updateQuotaFromHeaders(resp.headers, data.limits);
       throw new Error(`Failed to generate greeting: ${error.message}`);
     }
     //#endregion
@@ -572,6 +609,51 @@ export default class Heylock {
    * Add a new context entry with automatic timestamp.
    * @param {string} message - Description of user action
    */
+
+  /**
+   * Update quota properties from response headers and/or limits object.
+   * Called after every API call. If headers or limits are missing, previous values are retained.
+   * @private
+   * @param {Headers} headers - Response headers
+   * @param {object} [limits] - Optional limits object from /limits endpoint
+   */
+  _updateQuotaFromHeaders(headers, limits = null) {
+    // Try to get from headers first (for message calls)
+    const msgRemaining = headers.get('X-RateLimit-Remaining');
+    if (msgRemaining !== null && msgRemaining !== undefined && msgRemaining !== '') {
+      this._remainingMessages = isNaN(Number(msgRemaining)) ? null : Number(msgRemaining);
+    }
+
+    // If limits object provided (from /limits endpoint), update all types
+    if (limits && typeof limits === 'object') {
+      if (limits.messages && typeof limits.messages.remaining === 'number') {
+        this._remainingMessages = limits.messages.remaining;
+      }
+      if (limits.sorts && typeof limits.sorts.remaining === 'number') {
+        this._remainingSorts = limits.sorts.remaining;
+      }
+      if (limits.rewrites && typeof limits.rewrites.remaining === 'number') {
+        this._remainingRewrites = limits.rewrites.remaining;
+      }
+      if (limits.indexing_events && typeof limits.indexing_events.remaining === 'number') {
+        this._remainingIndexingEvents = limits.indexing_events.remaining;
+      }
+    }
+    // For other endpoints, try to get from headers if available
+    const sortsRemaining = headers.get('X-RateLimit-Sorts-Remaining');
+    if (sortsRemaining !== null && sortsRemaining !== undefined && sortsRemaining !== '') {
+      this._remainingSorts = isNaN(Number(sortsRemaining)) ? null : Number(sortsRemaining);
+    }
+    const rewritesRemaining = headers.get('X-RateLimit-Rewrites-Remaining');
+    if (rewritesRemaining !== null && rewritesRemaining !== undefined && rewritesRemaining !== '') {
+      this._remainingRewrites = isNaN(Number(rewritesRemaining)) ? null : Number(rewritesRemaining);
+    }
+    const indexingEventsRemaining = headers.get('X-RateLimit-IndexingEvents-Remaining');
+    if (indexingEventsRemaining !== null && indexingEventsRemaining !== undefined && indexingEventsRemaining !== '') {
+      this._remainingIndexingEvents = isNaN(Number(indexingEventsRemaining)) ? null : Number(indexingEventsRemaining);
+    }
+  }
+
   addContext(message) {
     //#region | Validate arguments
     if (typeof(message) !== "string" || message.length === 0) {
