@@ -251,8 +251,12 @@ export default class Heylock {
           context: this.getContextAsString()
         })
       });
+
       await this._handleCommonErrors(messageResponse);
       
+      console.log(messageResponse);
+      console.log(messageResponse?.headers);
+
       // In messageStream(), pass 'messages' for type
       this._updateQuotaFromHeaders(messageResponse.headers, null, 'messages');
           
@@ -629,6 +633,8 @@ export default class Heylock {
    * @param {string|null} [type] - Optional type of API call ('messages', 'sorts', 'rewrites', 'indexing_events')
    */
   _updateQuotaFromHeaders(headers, limits = null, type = null) {
+    console.log(headers, limits, type);
+
     // Helper to get header value from Headers or plain object
     function getHeader(h, key) {
       if (!h) return null;
