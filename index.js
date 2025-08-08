@@ -618,6 +618,9 @@ export default class Heylock {
    * @param {object} [limits] - Optional limits object from /limits endpoint
    */
   _updateQuotaFromHeaders(headers, limits = null) {
+    console.log(headers);
+    console.log(limits);
+
     // Try to get from headers first (for message calls)
     const msgRemaining = headers.get('X-RateLimit-Remaining');
     if (msgRemaining !== null && msgRemaining !== undefined && msgRemaining !== '') {
