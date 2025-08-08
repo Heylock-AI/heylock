@@ -6,7 +6,7 @@
  * // Initialize with API key
  * const heylock = new Heylock('your-api-key');
  */
-declare class Heylock {
+export default class Heylock {
   /**
    * Create a new Heylock client instance.
    * @param key - API key for authentication
@@ -150,4 +150,44 @@ declare class Heylock {
   clearContext(): void;
 }
 
-export = Heylock;
+export interface HeylockQuotaHeaders {
+  limit: number | null;
+  remaining: number | null;
+  reset: number | null;
+  resetAt: Date | null;
+  plan: string | null;
+  planExpires: number | null;
+  planExpiresAt: Date | null;
+  raw: {
+    limitRaw?: string | null;
+    remainingRaw?: string | null;
+    resetRaw?: string | null;
+    plan?: string | null;
+    planExpiresRaw?: string | null;
+  };
+}
+
+export interface HeylockQuotaError extends Error {
+  name: 'HeylockQuotaError';
+  code: 429;
+  limit: number | null;
+  remaining: number | null;
+  reset: number | null;
+  resetAt: Date | null;
+  plan: string | null;
+  planExpires: number | null;
+  planExpiresAt: Date | null;
+  headers: HeylockQuotaHeaders;
+}
+
+export interface HeylockLimitsResponse {
+  plan: string;
+  plan_expires: number | null;
+  limits: {
+    messages: { used: number | null; limit: number | null; remaining: number | null; reset: number | null };
+    sorts: { used: number | null; limit: number | null; remaining: number | null; reset: number | null };
+    rewrites: { used: number | null; limit: number | null; remaining: number | null; reset: number | null };
+    indexing_events: { used: number | null; limit: number | null; remaining: number | null; reset: number | null };
+  };
+  headers: HeylockQuotaHeaders;
+}

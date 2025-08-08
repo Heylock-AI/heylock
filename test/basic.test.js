@@ -2,7 +2,7 @@ import Heylock from '../index.js';
 
 // Basic test for Heylock instantiation and method presence
 function testHeylockInstantiation() {
-  const heylock = new Heylock('test-key', false, false);
+  const heylock = new Heylock('4hFxK/ZJfPLmvhYUwqFeE1Va4RgJZ8VlAxyHPJMZTBo=', false, false);
   if (!(heylock instanceof Heylock)) throw new Error('Instance creation failed');
   if (typeof heylock.message !== 'function') throw new Error('Missing message method');
   if (typeof heylock.rewrite !== 'function') throw new Error('Missing rewrite method');

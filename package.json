@@ -1,9 +1,9 @@
 {
   "name": "heylock",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Heylock: AI-powered messaging, rewriting, sorting, and context management client.",
   "type": "module",
-  "main": "index.js",
+  "main": "dist/heylock.min.js",
   "types": "types.d.ts",
   "keywords": ["ai", "messaging", "rewrite", "sort", "context", "typescript", "client"],
   "author": "Denis Evlampiev hello@heylock.pro",
@@ -17,16 +17,17 @@
   },
   "homepage": "https://github.com/DenisEvlampiev23/heylock#readme",
   "files": [
-    "index.js",
+    "dist/",
     "types.d.ts",
-    "dist/"
+    "README.md",
+    "LICENSE"
   ],
-  "module": "index.js",
+  "module": "dist/heylock.min.js",
   "exports": {
     ".": {
-      "import": "./index.js",
-      "require": "./index.js",
-      "types": "./types.d.ts"
+  "import": "./dist/heylock.min.js",
+  "require": "./dist/heylock.min.js",
+  "types": "./types.d.ts"
     }
   },
   "engines": {
@@ -35,7 +36,8 @@
   "scripts": {
     "build": "rollup -c",
     "test": "node test/basic.test.js",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
     "rollup": "^2.79.2",

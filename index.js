@@ -113,15 +113,7 @@ export default class Heylock {
       });
 
       console.log(messageResponse.status);
-
-      switch(messageResponse.status){
-        case 400:
-          throw new Error((await messageResponse.json()).error);
-        case 401:
-          throw new Error("Unauthorized. Check the key argument. Keep in mind that you need to use the latest generated key.");
-        case 500:
-          throw new Error("Something went bad. Try again later or check your internet connection.");
-      }
+      await this._handleCommonErrors(messageResponse);
           
       if(messageResponse.status === 200){
         let outputMessage = "";
@@ -227,16 +219,7 @@ export default class Heylock {
           context: this.getContextAsString()
         })
       });
-
-      switch(messageResponse.status){
-        case 400:
-          throw new Error((await messageResponse.json()).error);
-        case 401:
-          throw new Error("Unauthorized. Check the key argument. Keep in mind that you need to use the latest generated key.");
-        case 500:
-          throw new Error("Something went bad. Try again later or check your internet connection.");
-          
-      }
+      await this._handleCommonErrors(messageResponse);
           
       if(messageResponse.status === 200){
         const reader = messageResponse.body.getReader();
@@ -349,19 +332,7 @@ export default class Heylock {
       });
 
       console.log(rewriteResponse.status);
-
-      switch(rewriteResponse.status){
-        case 400:
-          throw new Error((await rewriteResponse.json()).error);
-        case 401:
-          throw new Error("Unauthorized. Check the key argument. Keep in mind that you need to use the latest generated key.");
-        case 500:
-          if(navigator.onLine === false){ // In node.js always returns undefined.
-            throw new Error("You're offline");
-          }
-
-          throw new Error("Something went bad. Try again later or check your internet connection.");
-      }
+      await this._handleCommonErrors(rewriteResponse);
           
       if(rewriteResponse.status === 200){
         let outputText = "";
@@ -446,15 +417,7 @@ export default class Heylock {
       });
 
       console.log(sortResponse.status);
-
-      switch(sortResponse.status){
-        case 400:
-          throw new Error((await sortResponse.json()).error);
-        case 401:
-          throw new Error("Unauthorized. Check the key argument. Keep in mind that you need to use the latest generated key.");
-        case 500:
-          throw new Error("Something went bad. Try again later or check your internet connection.");
-      }
+      await this._handleCommonErrors(sortResponse);
           
       if(sortResponse.status === 200){
         try{
@@ -531,17 +494,8 @@ export default class Heylock {
           context: this.getContextAsString()
         })
       });
-
       console.log(shouldEngageResponse.status);
-
-      switch(shouldEngageResponse.status){
-        case 400:
-          throw new Error((await shouldEngageResponse.json()).error);
-        case 401:
-          throw new Error("Unauthorized. Check the key argument. Keep in mind that you need to use the latest generated key.");
-        case 500:
-          throw new Error("Something went bad. Try again later or check your internet connection.");
-      }
+      await this._handleCommonErrors(shouldEngageResponse);
           
       if(shouldEngageResponse.status === 200){
         let responseData = null;
@@ -695,6 +649,107 @@ export default class Heylock {
   }
 
   //#endregion
+
+  /**
+   * Retrieve current usage limits and remaining quotas for the API key.
+   * @returns {Promise<{plan: string, planExpires: number|null, limits: any, headers: any}>}
+   */
+  async getLimits() {
+    this._checkNetworkConnectivity();
+
+    if (this._keyValidationError) throw this._keyValidationError;
+    await this._validateKey();
+
+    try {
+      const resp = await fetch("https://heylock.dev/api/v1/limits", {
+        method: 'GET',
+        headers: {
+          'Authorization': this.key,
+          'Content-Type': 'application/json'
+        }
+      });
+      await this._handleCommonErrors(resp);
+
+      const data = await resp.json();
+      const headers = this._parseRateLimitHeaders(resp.headers);
+      
+      return { ...data, headers };
+    } catch (err) {
+      if (navigator.onLine === false) throw new Error("You're offline");
+      if (err instanceof TypeError) throw new Error("Something is wrong with the server or your network. Try again later.");
+      throw err;
+    }
+  }
+
+  //////////////// Internal helpers ////////////////
+
+  /**
+   * Parse rate limit and plan headers from a Response headers object.
+   * @private
+   */
+  _parseRateLimitHeaders(headers) {
+    const limitRaw = headers.get('X-RateLimit-Limit');
+    const remainingRaw = headers.get('X-RateLimit-Remaining');
+    const resetRaw = headers.get('X-RateLimit-Reset');
+    const plan = headers.get('X-Plan') || null;
+    const planExpiresRaw = headers.get('X-Plan-Expires');
+
+    const toNum = (v) => (v == null || v === '' || v === 'unlimited' || v === 'unknown') ? null : Number(v);
+
+    const limit = toNum(limitRaw);
+    const remaining = toNum(remainingRaw);
+    const reset = toNum(resetRaw);
+    const resetAt = reset ? new Date(reset * 1000) : null;
+    const planExpires = toNum(planExpiresRaw);
+    const planExpiresAt = planExpires ? new Date(planExpires * 1000) : null;
+
+    return { limit, remaining, reset, resetAt, plan, planExpires, planExpiresAt, raw: { limitRaw, remainingRaw, resetRaw, plan, planExpiresRaw } };
+  }
+
+  /**
+   * Handle common non-200 responses and throw appropriate errors, including quota (429).
+   * @private
+   */
+  async _handleCommonErrors(response) {
+    if (response.status === 200) return;
+
+    if (response.status === 400) {
+      try {
+        const body = await response.json();
+        throw new Error(body?.error || 'Bad request');
+      } catch (_) {
+        throw new Error('Bad request');
+      }
+    }
+
+    if (response.status === 401) {
+      throw new Error('Unauthorized. Check the key argument. Keep in mind that you need to use the latest generated key.');
+    }
+
+    if (response.status === 429) {
+      let body = null;
+      try { body = await response.json(); } catch (_) {}
+      const headers = this._parseRateLimitHeaders(response.headers);
+      const err = new Error(body?.detail || body?.error || 'Quota exceeded');
+      err.name = 'HeylockQuotaError';
+      err.code = 429;
+      err.limit = headers.limit;
+      err.remaining = headers.remaining;
+      err.reset = headers.reset;
+      err.resetAt = headers.resetAt;
+      err.plan = headers.plan;
+      err.planExpires = headers.planExpires;
+      err.planExpiresAt = headers.planExpiresAt;
+      err.headers = headers;
+      throw err;
+    }
+
+    if (response.status === 500) {
+      throw new Error('Something went bad. Try again later or check your internet connection.');
+    }
+
+    throw new Error(`HTTP status: ${response.status} - ${response.statusText}`);
+  }
 
   //#region | Context System Helper Methods
 

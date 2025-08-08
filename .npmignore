@@ -1,4 +1,17 @@
-dist/
-test/
+# Ignore everything by default
+*
+
+# But include compiled dist and type declarations and docs
+!dist/
+!types.d.ts
+!README.md
+!LICENSE
+
+# Never include source, tests, configs
+index.js
 rollup.config.js
+test/
 *.test.js
+package-lock.json
+npm-debug.log
+.DS_Store
