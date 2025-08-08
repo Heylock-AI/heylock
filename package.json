@@ -1,11 +1,19 @@
 {
   "name": "heylock",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Heylock: AI-powered messaging, rewriting, sorting, and context management client.",
   "type": "module",
   "main": "dist/heylock.min.js",
   "types": "types.d.ts",
-  "keywords": ["ai", "messaging", "rewrite", "sort", "context", "typescript", "client"],
+  "keywords": [
+    "ai",
+    "messaging",
+    "rewrite",
+    "sort",
+    "context",
+    "typescript",
+    "client"
+  ],
   "author": "Denis Evlampiev hello@heylock.pro",
   "license": "ISC",
   "repository": {
@@ -25,9 +33,9 @@
   "module": "dist/heylock.min.js",
   "exports": {
     ".": {
-  "import": "./dist/heylock.min.js",
-  "require": "./dist/heylock.min.js",
-  "types": "./types.d.ts"
+      "import": "./dist/heylock.min.js",
+      "require": "./dist/heylock.min.js",
+      "types": "./types.d.ts"
     }
   },
   "engines": {
